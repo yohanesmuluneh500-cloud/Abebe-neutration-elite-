@@ -19,6 +19,18 @@ export interface Macros {
   protein: number;
   carbs: number;
   fats: number;
+  explanation?: string;
+}
+
+export interface FoodNutrition {
+  foodName: string;
+  servingSize: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fats: number;
+  grade: string;
+  coachTip: string;
 }
 
 export interface Exercise {
@@ -53,9 +65,10 @@ export interface ProgressMedia {
   type: 'image' | 'video';
 }
 
-// Added WatchData interface to support wearable device integration state used in Settings.tsx
+// Fixed missing interface: WatchData for wearable integration
 export interface WatchData {
   isConnected: boolean;
   deviceName: string;
   caloriesBurned: number;
+  heartRate?: number;
 }

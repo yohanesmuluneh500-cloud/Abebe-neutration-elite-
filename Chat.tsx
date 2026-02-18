@@ -4,6 +4,31 @@ import { chatWithCoach, generateSpeech } from '../services/geminiService';
 import { audioService } from '../services/audioService';
 import { ChatMessage } from '../types';
 
+interface SpeechRecognitionEvent extends Event {
+  results: {
+    [index: number]: {
+      [index: number]: {
+        transcript: string;
+      };
+    };
+  };
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+}
+
+interface SpeechRecognitionInstance extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: SpeechRecognitionErrorEvent) => void;
+  onend: () => void;
+  start: () => void;
+  stop: () => void;
+}
+
 const Chat: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: 'model', text: 'I am Abebe. What is holding you back from your goals? Ask me about form, recovery, or adjustments. Remember: I was forged by Yohanes Muluneh.' }
@@ -14,7 +39,7 @@ const Chat: React.FC = () => {
   const [isVocalizing, setIsVocalizing] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -22,29 +47,29 @@ const Chat: React.FC = () => {
     }
   }, [messages, loading, isVocalizing]);
 
-  // Setup Web Speech API for Voice-In
   useEffect(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognition = (globalThis as any).SpeechRecognition || (globalThis as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
-      recognitionRef.current.lang = 'en-US';
+      const recognition = new SpeechRecognition() as SpeechRecognitionInstance;
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
 
-      recognitionRef.current.onresult = (event: any) => {
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
         const transcript = event.results[0][0].transcript;
         setInput(transcript);
         setIsListening(false);
       };
 
-      recognitionRef.current.onerror = (event: any) => {
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         console.error("Speech recognition error", event.error);
         setIsListening(false);
       };
 
-      recognitionRef.current.onend = () => {
+      recognition.onend = () => {
         setIsListening(false);
       };
+      recognitionRef.current = recognition;
     }
   }, []);
 
@@ -68,8 +93,8 @@ const Chat: React.FC = () => {
       if (pcmData) {
         await audioService.playPcm(pcmData);
       }
-    } catch (err) {
-      console.error("Vocalization failed", err);
+    } catch (_err) {
+      console.error("Vocalization failed");
     } finally {
       setIsVocalizing(false);
     }
@@ -85,7 +110,6 @@ const Chat: React.FC = () => {
     setLoading(true);
 
     try {
-      // Limit history to last 15 messages to prevent context window issues
       const historyContext = messages.slice(-15);
       const response = await chatWithCoach(currentInput, historyContext);
       const coachReply = response || 'Coach is thinking...';
@@ -106,8 +130,8 @@ const Chat: React.FC = () => {
     <div className="flex flex-col h-[calc(100vh-12rem)] max-w-4xl mx-auto glass rounded-xl overflow-hidden animate-in zoom-in duration-300">
       <div className="bg-zinc-800/80 p-4 border-b border-zinc-700 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <div className="w-3 h-3 bg-cyan-400 rounded-full animate-pulse"></div>
-          <span className="font-oswald font-bold tracking-widest text-white">COACH ABEBE ONLINE</span>
+          <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+          <span className="font-oswald font-bold tracking-widest text-white uppercase">COACH ABEBE ONLINE</span>
         </div>
         
         <div className="flex items-center gap-4">
@@ -116,7 +140,6 @@ const Chat: React.FC = () => {
             className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase transition-all ${
               isVoiceMode ? 'bg-blue-600 text-white' : 'bg-zinc-900 text-zinc-500 border border-zinc-800'
             }`}
-            title="Auto-speak responses"
           >
             VOICE MODE: {isVoiceMode ? 'ON' : 'OFF'}
           </button>
@@ -145,7 +168,7 @@ const Chat: React.FC = () => {
               {m.role === 'model' && (
                 <button 
                   onClick={() => speakText(m.text)}
-                  className="absolute -right-10 top-2 p-2 text-blue-200/40 hover:text-cyan-400 opacity-0 group-hover:opacity-100 transition-all"
+                  className="absolute -right-10 top-2 p-2 text-blue-400 opacity-0 group-hover:opacity-100 transition-all"
                   title="Listen to Abebe"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -187,7 +210,6 @@ const Chat: React.FC = () => {
               className={`absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full transition-all ${
                 isListening ? 'bg-red-500 text-white animate-pulse' : 'text-zinc-500 hover:text-cyan-500'
               }`}
-              title="Speak to coach"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-20a3 3 0 013 3v8a3 3 0 01-3 33 3 0 01-3-3V5a3 3 0 013-3z" />
@@ -197,12 +219,11 @@ const Chat: React.FC = () => {
           <button
             onClick={handleSend}
             disabled={loading || !input.trim()}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-800 px-6 py-3 rounded-lg font-bold text-white transition-all shadow-lg shadow-blue-900/20"
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-800 px-6 py-3 rounded-lg font-bold text-white transition-all shadow-lg"
           >
             SEND
           </button>
         </div>
-        {isListening && <p className="text-[9px] text-cyan-500 font-bold mt-2 tracking-widest uppercase animate-pulse">Recording voice... Click mic to stop.</p>}
       </div>
     </div>
   );

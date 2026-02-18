@@ -11,6 +11,7 @@ import LandingPage from './components/LandingPage';
 import Auth from './components/Auth';
 import { WorkoutPlan, Macros as MacroType, UserMetrics, Goal } from './types';
 import { supabase } from './services/supabase';
+import { User } from '@supabase/supabase-js';
 
 const BackgroundForge: React.FC = () => {
   const embers = Array.from({ length: 15 });
@@ -36,7 +37,7 @@ const BackgroundForge: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [showLanding, setShowLanding] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [userName, setUserName] = useState('Warrior');
@@ -97,8 +98,8 @@ const App: React.FC = () => {
       if (workoutRes.data?.[0]) {
         setWorkout(workoutRes.data[0].plan_data);
       }
-    } catch (err) {
-      console.error('Data Sync Error:', err);
+    } catch (_err) {
+      console.error('Data Sync Error');
     } finally {
       setLoading(false);
       isFetchingRef.current = false;

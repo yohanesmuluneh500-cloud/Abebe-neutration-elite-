@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ProgressMedia } from '../types';
 import { supabase } from '../services/supabase';
@@ -15,7 +16,7 @@ const Progress: React.FC = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data, error } = await supabase
+    const { data, error: _error } = await supabase
       .from('progress_logs')
       .select('*')
       .eq('user_id', user.id)
@@ -44,19 +45,16 @@ const Progress: React.FC = () => {
       const fileName = `${user.id}/${Math.random()}.${fileExt}`;
       const filePath = `progress/${fileName}`;
 
-      // 1. Upload to Storage
       const { error: uploadError } = await supabase.storage
         .from('progress-media')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      // 2. Get Public URL
       const { data: { publicUrl } } = supabase.storage
         .from('progress-media')
         .getPublicUrl(filePath);
 
-      // 3. Save metadata to DB
       const { error: dbError } = await supabase.from('progress_logs').insert({
         user_id: user.id,
         media_url: publicUrl,
@@ -67,8 +65,9 @@ const Progress: React.FC = () => {
       if (dbError) throw dbError;
       
       fetchMedia();
-    } catch (err: any) {
-      alert("Failed to upload media: " + err.message);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Upload failed";
+      alert("Failed to upload media: " + message);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -76,7 +75,7 @@ const Progress: React.FC = () => {
   };
 
   const deleteItem = async (item: ProgressMedia) => {
-    if (!confirm("Delete this progress record?")) return;
+    if (!globalThis.confirm("Delete this progress record?")) return;
 
     try {
       const { data } = await supabase.from('progress_logs').select('storage_path').eq('id', item.id).single();
@@ -87,7 +86,7 @@ const Progress: React.FC = () => {
       
       await supabase.from('progress_logs').delete().eq('id', item.id);
       fetchMedia();
-    } catch (err) {
+    } catch (_err) {
       alert("Failed to delete record.");
     }
   };

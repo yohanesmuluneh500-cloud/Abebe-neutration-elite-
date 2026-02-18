@@ -1,17 +1,42 @@
 
+interface BluetoothGATTCharacteristic {
+  startNotifications(): Promise<void>;
+  addEventListener(type: string, listener: (event: { target: { value: DataView } }) => void): void;
+}
+
+interface BluetoothGATTService {
+  getCharacteristic(uuid: string): Promise<BluetoothGATTCharacteristic>;
+}
+
+interface BluetoothGATTServer {
+  /**
+   * Added connect method to correctly type the Web Bluetooth GATT connection sequence.
+   * This resolves the error on line 44.
+   */
+  connect(): Promise<BluetoothGATTServer>;
+  getPrimaryService(uuid: string): Promise<BluetoothGATTService>;
+  connected: boolean;
+  disconnect(): void;
+}
+
+interface BluetoothDevice {
+  gatt?: BluetoothGATTServer;
+  name?: string;
+}
+
 export class BluetoothService {
-  private device: any = null;
-  private server: any = null;
-  private characteristic: any = null;
+  private device: BluetoothDevice | null = null;
+  private server: BluetoothGATTServer | null = null;
+  private characteristic: BluetoothGATTCharacteristic | null = null;
 
   async requestWatchConnection(onHeartRateUpdate: (hr: number) => void): Promise<string> {
     try {
       const heartRateServiceUuid = 'heart_rate';
       const heartRateCharacteristicUuid = 'heart_rate_measurement';
 
-      // Added common services to optionalServices to prevent unexpected disconnections
-      // when devices broadcast multiple characteristics.
-      this.device = await (navigator as any).bluetooth.requestDevice({
+      const navigatorObj = globalThis.navigator as unknown as { bluetooth: { requestDevice: (config: object) => Promise<BluetoothDevice> } };
+      
+      this.device = await navigatorObj.bluetooth.requestDevice({
         filters: [{ services: [heartRateServiceUuid] }],
         optionalServices: [
           'battery_service', 
@@ -21,6 +46,7 @@ export class BluetoothService {
         ]
       });
 
+      // Establish connection to the GATT server
       this.server = await this.device.gatt?.connect() || null;
       if (!this.server) throw new Error("GATT Server connection failed");
 
@@ -28,7 +54,7 @@ export class BluetoothService {
       this.characteristic = await service.getCharacteristic(heartRateCharacteristicUuid);
 
       await this.characteristic.startNotifications();
-      this.characteristic.addEventListener('characteristicvaluechanged', (event: any) => {
+      this.characteristic.addEventListener('characteristicvaluechanged', (event) => {
         const value = event.target.value;
         const heartRate = value.getUint8(1);
         onHeartRateUpdate(heartRate);
@@ -41,7 +67,7 @@ export class BluetoothService {
     }
   }
 
-  async disconnect() {
+  disconnect() {
     if (this.device?.gatt?.connected) {
       this.device.gatt.disconnect();
     }

@@ -8,7 +8,6 @@ const Auth: React.FC = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Form State
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [age, setAge] = useState('25');
@@ -16,7 +15,6 @@ const Auth: React.FC = () => {
   const [weight, setWeight] = useState('80');
 
   const getShadowEmail = (username: string) => {
-    // Generates a unique iron.academy shadow email for Supabase compatibility
     const cleanName = username.trim().toLowerCase().replace(/\s+/g, '.');
     return `${cleanName}@iron.academy`;
   };
@@ -72,8 +70,9 @@ const Auth: React.FC = () => {
         });
         if (signInError) throw signInError;
       }
-    } catch (err: any) {
-      setError(err.message.includes("Invalid login credentials") ? "Access Denied. Incorrect Name or Password." : err.message);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      setError(message.includes("Invalid login credentials") ? "Access Denied. Incorrect Name or Password." : message);
     } finally {
       setLoading(false);
     }

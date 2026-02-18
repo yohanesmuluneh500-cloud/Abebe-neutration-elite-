@@ -4,14 +4,15 @@ export class AudioService {
 
   private getContext(): AudioContext {
     if (!this.ctx) {
-      this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)({
+      const AudioCtx = globalThis.AudioContext || (globalThis as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      this.ctx = new AudioCtx({
         sampleRate: 24000,
       });
     }
     return this.ctx;
   }
 
-  private decode(base64: string): Uint8Array {
+  private decodeBase64(base64: string): Uint8Array {
     const binaryString = atob(base64);
     const len = binaryString.length;
     const bytes = new Uint8Array(len);
@@ -21,12 +22,12 @@ export class AudioService {
     return bytes;
   }
 
-  private async decodeAudioData(
+  private decodePcmData(
     data: Uint8Array,
     ctx: AudioContext,
     sampleRate: number,
     numChannels: number,
-  ): Promise<AudioBuffer> {
+  ): AudioBuffer {
     const dataInt16 = new Int16Array(data.buffer);
     const frameCount = dataInt16.length / numChannels;
     const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
@@ -40,14 +41,14 @@ export class AudioService {
     return buffer;
   }
 
-  async playPcm(base64Pcm: string) {
+  async playPcm(base64Pcm: string): Promise<void> {
     const ctx = this.getContext();
     if (ctx.state === 'suspended') {
       await ctx.resume();
     }
 
-    const bytes = this.decode(base64Pcm);
-    const audioBuffer = await this.decodeAudioData(bytes, ctx, 24000, 1);
+    const bytes = this.decodeBase64(base64Pcm);
+    const audioBuffer = this.decodePcmData(bytes, ctx, 24000, 1);
     
     const source = ctx.createBufferSource();
     source.buffer = audioBuffer;

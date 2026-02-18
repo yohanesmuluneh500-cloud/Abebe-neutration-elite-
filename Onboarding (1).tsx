@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Goal, UserMetrics, Macros } from '../types';
 import { calculateMacros } from '../services/geminiService';
@@ -33,7 +34,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         carbs: results.carbs,
         fats: results.fats
       });
-    } catch (err) {
+    } catch (_err) {
       alert("Failed to sync with Abebe's servers. Check connection.");
     } finally {
       setLoading(false);
