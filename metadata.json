@@ -1,0 +1,8 @@
+{
+  "name": "Iron Mind Academy",
+  "description": "Elite AI Hypertrophy Specialist forged by Yohanes Muluneh.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
